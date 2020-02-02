@@ -20,29 +20,29 @@ import org.apache.kafka.streams.kstream.Produced;
 import serialization.JsonPOJODeserializer;
 import serialization.JsonPOJOSerializer;
 
-public class Pipe {
+public class BankStream {
 	
 	public static void main(String[] args) throws Exception {
         Properties props = new Properties();
-        props.put(StreamsConfig.APPLICATION_ID_CONFIG, "pipestream");
-        props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "kafka1:9092,kafka2:9092,kafka3:9092");
+        props.put(StreamsConfig.APPLICATION_ID_CONFIG, "bankstream");
+        props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "kafka1:9092,kafka2:9093,kafka3:9094");
 	
         final StreamsBuilder builder = new StreamsBuilder();
         
         Map<String, Object> serdeProps = new HashMap<>();
         
-        final Serializer<PipeMessage> pipeSerializer = new JsonPOJOSerializer<>();
-        serdeProps.put("JsonPOJOClass", PipeMessage.class);
-        pipeSerializer.configure(serdeProps, false);
+        final Serializer<BankMessage> bankSerializer = new JsonPOJOSerializer<>();
+        serdeProps.put("JsonPOJOClass", BankMessage.class);
+        bankSerializer.configure(serdeProps, false);
         
-        final Deserializer<PipeMessage> pipeDeserializer = new JsonPOJODeserializer<>();
-        serdeProps.put("JsonPOJOClass", PipeMessage.class);
-        pipeDeserializer.configure(serdeProps, false);
+        final Deserializer<BankMessage> bankDeserializer = new JsonPOJODeserializer<>();
+        serdeProps.put("JsonPOJOClass", BankMessage.class);
+        bankDeserializer.configure(serdeProps, false);
         
-        final Serde<PipeMessage> pipeSerde  = Serdes.serdeFrom(pipeSerializer, pipeDeserializer);
+        final Serde<BankMessage> bankSerde  = Serdes.serdeFrom(bankSerializer, bankDeserializer);
         
-        KStream<String, PipeMessage> source = builder.stream("test-input", Consumed.with(Serdes.String(), pipeSerde));
-        source.to("test-output", Produced.with(Serdes.String(), pipeSerde));
+        KStream<String, BankMessage> source = builder.stream("bank-input-tests", Consumed.with(Serdes.String(), bankSerde));
+        source.to("bank-output", Produced.with(Serdes.String(), bankSerde));
         
         final Topology topology = builder.build();
         System.out.println(topology.describe());
