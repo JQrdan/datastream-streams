@@ -31,9 +31,9 @@ public class SongStream {
  
     public static void main(String[] args) throws Exception {
         Properties props = new Properties();
-        props.put(StreamsConfig.APPLICATION_ID_CONFIG, "streams-pipe");
-        props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "kafka1:9092,kafka2:9093,kafka3:9094");
-        props.put(StreamsConfig.NUM_STREAM_THREADS_CONFIG, 4);
+        props.put(StreamsConfig.APPLICATION_ID_CONFIG, "fresh-stream");
+        props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "kafka2:9093,kafka3:9094");
+        // props.put(StreamsConfig.NUM_STREAM_THREADS_CONFIG, 4);
  
         final StreamsBuilder builder = new StreamsBuilder();
 
@@ -72,7 +72,7 @@ public class SongStream {
 
         // final Serde<DetailedSong> detailedSongSerde = Serdes.serdeFrom(detailedSongSerializer, detailedSongDeserializer);
  
-        KStream<String, Song> songs = builder.stream("songs", Consumed.with(Serdes.String(), songSerde));
+        KStream<String, Song> songs = builder.stream("songAttributes", Consumed.with(Serdes.String(), songSerde));
         // KTable<String, SongAttributes> songAttributess = builder.table("songAttributess", Consumed.with(Serdes.String(), songAttributesSerde));
 
         // KStream<String, DetailedSong> detailedSongs = songs
