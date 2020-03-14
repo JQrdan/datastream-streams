@@ -1,5 +1,5 @@
-start:
-	mvn exec:java -Dexec.mainClass=com.datastream.streams.SongStream -Dlog4j.configuration=file:src/main/resources/log4j.properties
+details:
+	mvn exec:java -Dexec.mainClass=com.datastream.streams.DetailSongsStream -Dlog4j.configuration=file:src/main/resources/log4j.properties
 
-test:
-	mvn exec:java -Dexec.mainClass=com.datastream.streams.TestStream
+genres:
+	mvn exec:java -Dexec.mainClass=com.datastream.streams.PopularGenreStream -Dlog4j.configuration=file:src/main/resources/log4j.properties
