@@ -1,6 +1,5 @@
 package com.datastream.streams;
 
-import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
@@ -13,11 +12,7 @@ import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.KTable;
-import org.apache.kafka.streams.kstream.GlobalKTable;
-import org.apache.kafka.streams.kstream.KeyValueMapper;
 import org.apache.kafka.streams.kstream.Produced;
-import org.apache.kafka.streams.kstream.Serialized;
-import org.apache.kafka.streams.kstream.ValueJoiner;
  
 import java.util.Map;
 import java.util.HashMap;
@@ -28,7 +23,6 @@ import com.datastream.streams.serialization.*;
 import com.datastream.streams.messages.Song;
 import com.datastream.streams.messages.SongAttributes;
 import com.datastream.streams.messages.DetailedSong;
-import com.datastream.streams.messages.Genre;
  
 public class DetailSongsStream {
  
@@ -87,7 +81,7 @@ public class DetailSongsStream {
                 }
             },
             Joined.with(Serdes.String(), songSerde, songAttributesSerde)
-        ).map((key, value) -> KeyValue.pair(value.getGenreID(), value));
+        ).map((key, value) -> KeyValue.pair(value.genreID, value));
  
         detailedSongs.to("details", Produced.with(Serdes.String(), detailedSongSerde));
  

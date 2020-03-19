@@ -1,10 +1,10 @@
 package com.datastream.streams;
 
-import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.common.serialization.Serializer;
+import org.apache.kafka.common.utils.Bytes;
 import org.apache.kafka.streams.kstream.Consumed;
 import org.apache.kafka.streams.kstream.Joined;
 import org.apache.kafka.streams.KafkaStreams;
@@ -13,12 +13,7 @@ import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.KTable;
-import org.apache.kafka.streams.kstream.KGroupedStream;
-import org.apache.kafka.streams.kstream.GlobalKTable;
-import org.apache.kafka.streams.kstream.KeyValueMapper;
 import org.apache.kafka.streams.kstream.Produced;
-import org.apache.kafka.streams.kstream.Serialized;
-import org.apache.kafka.streams.kstream.ValueJoiner;
 import org.apache.kafka.streams.kstream.Materialized;
  
 import java.util.Map;
@@ -26,11 +21,12 @@ import java.util.HashMap;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 
-import com.datastream.streams.serialization.*;
-import com.datastream.streams.messages.Song;
-import com.datastream.streams.messages.SongAttributes;
+import com.datastream.streams.serialization.JsonPOJODeserializer;
+import com.datastream.streams.serialization.JsonPOJOSerializer;
+import com.datastream.streams.messages.Average;
 import com.datastream.streams.messages.DetailedSong;
 import com.datastream.streams.messages.Genre;
+import com.datastream.streams.messages.Tuple;
  
 public class PopularGenreStream {
  
@@ -39,7 +35,6 @@ public class PopularGenreStream {
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "genre-stream");
         props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "kafka2:9093");
         props.put(StreamsConfig.NUM_STREAM_THREADS_CONFIG, 4);
-        props.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.Double().getClass().getName());
  
         final StreamsBuilder builder = new StreamsBuilder();
 
@@ -66,20 +61,52 @@ public class PopularGenreStream {
         detailedSongDeserializer.configure(serdeProps, false);
 
         final Serde<DetailedSong> detailedSongSerde = Serdes.serdeFrom(detailedSongSerializer, detailedSongDeserializer);
+        
+        final Serializer<Tuple> tupleSerializer = new JsonPOJOSerializer<>();
+        serdeProps.put("JsonPOJOClass", Tuple.class);
+        tupleSerializer.configure(serdeProps, false);
+
+        final Deserializer<Tuple> tupleDeserializer = new JsonPOJODeserializer<>();
+        serdeProps.put("JsonPOJOClass", Tuple.class);
+        tupleDeserializer.configure(serdeProps, false);
+
+        final Serde<Tuple> tupleSerde = Serdes.serdeFrom(tupleSerializer, tupleDeserializer);
+
+        final Serializer<Average> averageSerializer = new JsonPOJOSerializer<>();
+        serdeProps.put("JsonPOJOClass", Average.class);
+        averageSerializer.configure(serdeProps, false);
+
+        final Deserializer<Average> averageDeserializer = new JsonPOJODeserializer<>();
+        serdeProps.put("JsonPOJOClass", Average.class);
+        averageDeserializer.configure(serdeProps, false);
+
+        final Serde<Average> averageSerde = Serdes.serdeFrom(averageSerializer, averageDeserializer);
  
         KStream<String, DetailedSong> details = builder.stream("details", Consumed.with(Serdes.String(), detailedSongSerde));
+        KTable<String, Genre> genres = builder.table("genres", Consumed.with(Serdes.String(), genreSerde));
             
-        KTable<String, Double> countedRatings = details
-            .groupByKey(Serialized.with(Serdes.String(), detailedSongSerde))
+        KTable<String, Tuple> countedRatings = details
+            .groupByKey()
             .aggregate(
-                () -> 0D, // initial aggregate is 0
+                () -> new Tuple(0, 0),
                 (aggKey, newValue, aggValue) -> {
-                    System.out.println(aggValue + " " + newValue.getRating());
-                    return aggValue + Double.parseDouble(newValue.getRating());
+                    aggValue.rating += Integer.parseInt(newValue.rating);
+                    aggValue.count++;
+                    return aggValue;
                 }, 
-                Materialized.as("aggregated-stream-store"));
+                Materialized.with(Serdes.String(), tupleSerde));
+
+        KStream<String, Average> averages = countedRatings.toStream().leftJoin(genres,
+                (counts, genre) -> {
+                    if (genre == null) {
+                        return new Average("UNKNOWN", counts.rating / (double) counts.count, counts.count);
+                    } else {
+                        return new Average(genre.genreName, counts.rating / (double) counts.count, counts.count);
+                    }
+                },
+                Joined.with(Serdes.String(), tupleSerde, genreSerde));
  
-        countedRatings.toStream().to("counted", Produced.with(Serdes.String(), Serdes.Double()));
+        averages.to("averages", Produced.with(Serdes.String(), averageSerde));
  
         final KafkaStreams streams = new KafkaStreams(builder.build(), props);
         final CountDownLatch latch = new CountDownLatch(1);
