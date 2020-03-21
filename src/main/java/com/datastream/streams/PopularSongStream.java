@@ -5,13 +5,14 @@ import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.streams.kstream.Consumed;
-import org.apache.kafka.streams.kstream.Joined;
+import org.apache.kafka.streams.kstream.Grouped;
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.KTable;
+import org.apache.kafka.streams.kstream.Materialized;
 import org.apache.kafka.streams.kstream.Produced;
  
 import java.util.Map;
@@ -20,43 +21,21 @@ import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 
 import com.datastream.streams.serialization.*;
-import com.datastream.streams.messages.Song;
-import com.datastream.streams.messages.SongAttributes;
 import com.datastream.streams.messages.DetailedSong;
+import com.datastream.streams.messages.Tuple;
+import com.datastream.streams.messages.Average;
  
-public class DetailSongsStream {
+public class PopularSongStream {
  
     public static void main(String[] args) throws Exception {
         Properties props = new Properties();
-        props.put(StreamsConfig.APPLICATION_ID_CONFIG, "song-detailer");
+        props.put(StreamsConfig.APPLICATION_ID_CONFIG, "song-stream");
         props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "kafka2:9093");
         props.put(StreamsConfig.NUM_STREAM_THREADS_CONFIG, 4);
  
         final StreamsBuilder builder = new StreamsBuilder();
 
         Map<String, Object> serdeProps = new HashMap<>();
-
-        // Song Serdes
-        final Serializer<Song> songSerializer = new JsonPOJOSerializer<>();
-        serdeProps.put("JsonPOJOClass", Song.class);
-        songSerializer.configure(serdeProps, false);
-
-        final Deserializer<Song> songDeserializer = new JsonPOJODeserializer<>();
-        serdeProps.put("JsonPOJOClass", Song.class);
-        songDeserializer.configure(serdeProps, false);
-
-        final Serde<Song> songSerde = Serdes.serdeFrom(songSerializer, songDeserializer);
-
-        // SongAttributes Serdes
-        final Serializer<SongAttributes> songAttributesSerializer = new JsonPOJOSerializer<>();
-        serdeProps.put("JsonPOJOClass", SongAttributes.class);
-        songAttributesSerializer.configure(serdeProps, false);
-
-        final Deserializer<SongAttributes> songAttributesDeserializer = new JsonPOJODeserializer<>();
-        serdeProps.put("JsonPOJOClass", SongAttributes.class);
-        songAttributesDeserializer.configure(serdeProps, false);
-
-        final Serde<SongAttributes> songAttributesSerde = Serdes.serdeFrom(songAttributesSerializer, songAttributesDeserializer);
 
         // DetailedSong Serdes
         final Serializer<DetailedSong> detailedSongSerializer = new JsonPOJOSerializer<>();
@@ -68,22 +47,45 @@ public class DetailSongsStream {
         detailedSongDeserializer.configure(serdeProps, false);
 
         final Serde<DetailedSong> detailedSongSerde = Serdes.serdeFrom(detailedSongSerializer, detailedSongDeserializer);
- 
-        KStream<String, Song> songs = builder.stream("songs", Consumed.with(Serdes.String(), songSerde));
-        KTable<String, SongAttributes> songAttributes = builder.table("songattributes", Consumed.with(Serdes.String(), songAttributesSerde));
 
-        KStream<String, DetailedSong> detailedSongs = songs.leftJoin(songAttributes,
-            (song, attributes) -> {
-                if (attributes == null) {
-                    return new DetailedSong(song.userID, song.songID, song.rating, "UNKNOWN", "UNKNOWN", "UNKNOWN");
-                } else {
-                    return new DetailedSong(song.userID, song.songID, song.rating, attributes.albumID, attributes.artistID, attributes.genreID);
-                }
-            },
-            Joined.with(Serdes.String(), songSerde, songAttributesSerde)
-        );
+        final Serializer<Tuple> tupleSerializer = new JsonPOJOSerializer<>();
+        serdeProps.put("JsonPOJOClass", Tuple.class);
+        tupleSerializer.configure(serdeProps, false);
+
+        final Deserializer<Tuple> tupleDeserializer = new JsonPOJODeserializer<>();
+        serdeProps.put("JsonPOJOClass", Tuple.class);
+        tupleDeserializer.configure(serdeProps, false);
+
+        final Serde<Tuple> tupleSerde = Serdes.serdeFrom(tupleSerializer, tupleDeserializer);
+
+        final Serializer<Average> averageSerializer = new JsonPOJOSerializer<>();
+        serdeProps.put("JsonPOJOClass", Average.class);
+        averageSerializer.configure(serdeProps, false);
+
+        final Deserializer<Average> averageDeserializer = new JsonPOJODeserializer<>();
+        serdeProps.put("JsonPOJOClass", Average.class);
+        averageDeserializer.configure(serdeProps, false);
+
+        final Serde<Average> averageSerde = Serdes.serdeFrom(averageSerializer, averageDeserializer);
  
-        detailedSongs.to("details", Produced.with(Serdes.String(), detailedSongSerde));
+        KStream<String, DetailedSong> details = builder.stream("details", Consumed.with(Serdes.String(), detailedSongSerde));
+            
+        KTable<String, Tuple> countedRatings = details
+            .groupBy(
+              (key, value) -> value.songID,
+              Grouped.with(Serdes.String(), detailedSongSerde))
+            .aggregate(
+                () -> new Tuple(0, 0),
+                (aggKey, newValue, aggValue) -> {
+                    aggValue.rating += Integer.parseInt(newValue.rating);
+                    aggValue.count++;
+                    return aggValue;
+                }, 
+                Materialized.with(Serdes.String(), tupleSerde));
+
+        KStream<String, Average> averages = countedRatings.toStream().map((key, value) -> KeyValue.pair(key, new Average(key, value.rating / (double) value.count, value.count)));
+
+        averages.to("song-averages", Produced.with(Serdes.String(), averageSerde));
  
         final KafkaStreams streams = new KafkaStreams(builder.build(), props);
         final CountDownLatch latch = new CountDownLatch(1);

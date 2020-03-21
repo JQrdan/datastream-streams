@@ -4,11 +4,10 @@ import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.common.serialization.Serializer;
-import org.apache.kafka.common.utils.Bytes;
 import org.apache.kafka.streams.kstream.Consumed;
+import org.apache.kafka.streams.kstream.Grouped;
 import org.apache.kafka.streams.kstream.Joined;
 import org.apache.kafka.streams.KafkaStreams;
-import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.kstream.KStream;
@@ -86,7 +85,9 @@ public class PopularGenreStream {
         KTable<String, Genre> genres = builder.table("genres", Consumed.with(Serdes.String(), genreSerde));
             
         KTable<String, Tuple> countedRatings = details
-            .groupByKey()
+            .groupBy(
+                (key, value) -> value.genreID,
+                Grouped.with(Serdes.String(), detailedSongSerde))
             .aggregate(
                 () -> new Tuple(0, 0),
                 (aggKey, newValue, aggValue) -> {
@@ -106,7 +107,7 @@ public class PopularGenreStream {
                 },
                 Joined.with(Serdes.String(), tupleSerde, genreSerde));
  
-        averages.to("averages", Produced.with(Serdes.String(), averageSerde));
+        averages.to("genre-averages", Produced.with(Serdes.String(), averageSerde));
  
         final KafkaStreams streams = new KafkaStreams(builder.build(), props);
         final CountDownLatch latch = new CountDownLatch(1);

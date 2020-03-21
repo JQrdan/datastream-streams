@@ -1,14 +1,14 @@
 package com.datastream.streams.messages;
 
 public class Average {
-  public String genreName;
+  public String name;
   public double averageRating;
   public int numRatings;
 
   public Average() {}
 
-  public Average(String genreName, double averageRating, int numRatings) {
-    this.genreName = genreName;
+  public Average(String name, double averageRating, int numRatings) {
+    this.name = name;
     this.averageRating = averageRating;
     this.numRatings = numRatings;
   }

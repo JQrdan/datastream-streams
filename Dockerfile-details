@@ -7,5 +7,5 @@ WORKDIR /opt/kafka/streams
 
 RUN mvn package
 
-ENTRYPOINT [ "mvn", "exec:java", "-Dexec.mainClass=com.datastream.streams.DetailedSongStream", "-Dlog4j.configuration=file:src/main/resources/log4j.properties" ]
+ENTRYPOINT [ "mvn", "exec:java", "-Dexec.mainClass=com.datastream.streams.DetailSongsStream", "-Dlog4j.configuration=file:src/main/resources/log4j.properties" ]
 
