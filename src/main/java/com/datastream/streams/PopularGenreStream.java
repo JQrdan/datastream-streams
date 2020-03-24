@@ -32,7 +32,7 @@ public class PopularGenreStream {
     public static void main(String[] args) throws Exception {
         Properties props = new Properties();
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "genre-stream");
-        props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "kafka2:9093");
+        props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "kafka1:9092,kafka2:9093,kafka3:9094");
         props.put(StreamsConfig.NUM_STREAM_THREADS_CONFIG, 4);
  
         final StreamsBuilder builder = new StreamsBuilder();

@@ -7,7 +7,6 @@ import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.streams.kstream.Consumed;
 import org.apache.kafka.streams.kstream.Joined;
 import org.apache.kafka.streams.KafkaStreams;
-import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.kstream.KStream;
@@ -29,7 +28,7 @@ public class DetailSongsStream {
     public static void main(String[] args) throws Exception {
         Properties props = new Properties();
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "song-detailer");
-        props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "kafka2:9093");
+        props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "kafka1:9092,kafka2:9093,kafka3:9094");
         props.put(StreamsConfig.NUM_STREAM_THREADS_CONFIG, 4);
  
         final StreamsBuilder builder = new StreamsBuilder();
