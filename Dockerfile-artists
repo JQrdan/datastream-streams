@@ -2,10 +2,11 @@ FROM maven:3.6.3-ibmjava-8-alpine
 
 COPY src /opt/kafka/streams/src/
 COPY pom.xml /opt/kafka/streams
+COPY wait-for-it.sh /opt/kafka/streams
 
 WORKDIR /opt/kafka/streams
 
 RUN mvn package
 
-ENTRYPOINT [ "mvn", "exec:java", "-Dexec.mainClass=com.datastream.streams.ArtistStream", "-Dlog4j.configuration=file:src/main/resources/log4j.properties" ]
+ENTRYPOINT [ "./wait-for-it.sh", "-t", "0", "kafkaconnect:8083", "--", "mvn", "exec:java", "-Dexec.mainClass=com.datastream.streams.ArtistStream", "-Dlog4j.configuration=file:src/main/resources/log4j.properties" ]
 
