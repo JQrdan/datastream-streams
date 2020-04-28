@@ -28,7 +28,7 @@ public class DetailSongsStream {
     public static void main(String[] args) throws Exception {
         Properties props = new Properties();
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "song-detailer");
-        props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "kafka1:9092,kafka2:9093,kafka3:9094");
+        props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "INSIDE://kafka:9094");
         props.put(StreamsConfig.NUM_STREAM_THREADS_CONFIG, 4);
         props.put(StreamsConfig.RETRIES_CONFIG, 100);
  
